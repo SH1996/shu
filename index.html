@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1.5,user-scalable=yes,viewport-fit=cover">
+    <title>AI思维树·一键生成</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --bg: #f7f5f0;
+            --pbg: #fff;
+            --t: #2c2416;
+            --ts: #6b5e4a;
+            --b: #e5ddd0;
+            --g: #b8860b;
+            --a1: #8b4513;
+            --a2: #a0522d;
+            --a3: #cd853f;
+            --a4: #6b8e6b;
+            --bp: #b8860b;
+            --bph: #9a7209;
+            --d: #c0392b;
+            --dh: #a93226;
+            --ss: 0 1px 3px rgba(44, 36, 22, .06);
+            --sm: 0 4px 16px rgba(44, 36, 22, .1);
+            --sl: 0 8px 32px rgba(44, 36, 22, .14);
+            --r: 12px;
+            --rs: 8px;
+            --fs: 'Noto Serif SC', 'STSong', 'Songti SC', 'SimSun', 'KaiTi', serif;
+            --f: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: var(--f);
+            background: var(--bg);
+            color: var(--t);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            position: fixed;
+            top: 0;
+            left: 0
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--pbg);
+            border-bottom: 1px solid var(--b);
+            box-shadow: var(--ss);
+            z-index: 100;
+            gap: 8px;
+            flex-shrink: 0;
+            min-height: 48px
+        }
+
+        .top-bar .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .top-bar .logo-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #f0d78c, var(--g));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(184, 134, 11, .3)
+        }
+
+        .top-bar .logo-text {
+            font-family: var(--fs);
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--a1);
+            white-space: nowrap
+        }
+
+        .spacer {
+            flex: 1
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px;
+            border-radius: var(--rs);
+            font-size: .78rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+            font-weight: 500;
+            background: 0 0;
+            white-space: nowrap
+        }
+
+        .btn-outline {
+            border-color: var(--b);
+            color: var(--t)
+        }
+
+        .btn-outline:active {
+            background: #f0ebe0
+        }
+
+        .btn-primary {
+            background: var(--bp);
+            color: #fff;
+            border-color: var(--bp);
+            font-weight: 600
+        }
+
+        .btn-primary:active {
+            background: var(--bph)
+        }
+
+        .btn-danger {
+            background: var(--d);
+            color: #fff;
+            border-color: var(--d)
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: .75rem
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative
+        }
+
+        .tree-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, rgba(184, 134, 11, .03) 0%, transparent 70%), radial-gradient(circle at 20% 30%, rgba(139, 69, 19, .02) 0%, transparent 50%), var(--bg);
+            touch-action: pan-x pan-y pinch-zoom
+        }
+
+        .tree-area svg {
+            display: block;
+            width: 100%;
+            height: 100%
+        }
+
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 10
+        }
+
+        .zoom-controls button {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .9);
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--b);
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: var(--ss);
+            color: var(--t);
+            -webkit-backdrop-filter: blur(4px)
+        }
+
+        .control-bar {
+            background: var(--pbg);
+            border-top: 1px solid var(--b);
+            padding: 12px 16px;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, .06);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 45vh;
+            overflow-y: auto;
+            flex-shrink: 0;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap
+        }
+
+        .control-row label {
+            font-size: .75rem;
+            font-weight: 600;
+            color: var(--ts);
+            white-space: nowrap
+        }
+
+        .control-row input[type=text] {
+            flex: 1;
+            min-width: 120px;
+            padding: 8px 10px;
+            border: 1px solid var(--b);
+            border-radius: 8px;
+            font-size: .85rem;
+            background: #fdfaf5;
+            color: var(--t)
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .slider-group input[type=range] {
+            width: 70px;
+            accent-color: var(--g)
+        }
+
+        .slider-value {
+            font-weight: 700;
+            color: var(--a1);
+            min-width: 20px;
+            text-align: center
+        }
+
+        .btn-generate {
+            background: var(--a1);
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 10px rgba(139, 69, 19, .3);
+            align-self: center
+        }
+
+        .btn-generate:active {
+            background: #6b3410;
+            transform: scale(.98)
+        }
+
+        .btn-generate:disabled {
+            opacity: .6;
+            pointer-events: none
+        }
+
+        .progress-text {
+            font-size: .75rem;
+            color: var(--ts);
+            text-align: center
+        }
+
+        .node-info-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap
+        }
+
+        .node-info-row .node-name {
+            font-weight: 700;
+            color: var(--a1);
+            font-family: var(--fs);
+            flex: 1;
+            word-break: break-word
+        }
+
+        .parent-link {
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--a1);
+            text-decoration: underline
+        }
+
+        .child-list {
+            list-style: none;
+            margin-top: 6px
+        }
+
+        .child-list li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            background: #fdfaf5;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            font-size: .8rem
+        }
+
+        .child-list .child-name {
+            flex: 1;
+            word-break: break-word;
+            cursor: pointer
+        }
+
+        .child-list .child-delete {
+            cursor: pointer;
+            color: #c0a080;
+            font-weight: 700;
+            padding: 2px 6px
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(44, 36, 22, .5);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .3s;
+            backdrop-filter: blur(2px);
+            padding: 16px
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto
+        }
+
+        .modal {
+            background: var(--pbg);
+            border-radius: 16px;
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: var(--sl);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 85vh;
+            overflow-y: auto
+        }
+
+        .modal h3 {
+            font-family: var(--fs);
+            color: var(--a1)
+        }
+
+        .modal label {
+            font-size: .8rem;
+            font-weight: 600;
+            color: var(--ts);
+            display: flex;
+            flex-direction: column;
+            gap: 4px
+        }
+
+        .modal input {
+            padding: 10px;
+            border: 1px solid var(--b);
+            border-radius: 8px;
+            background: #fdfaf5;
+            font-size: .9rem
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2c2416;
+            color: #fdfaf5;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: .8rem;
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .3s;
+            white-space: nowrap
+        }
+
+        .toast.show {
+            opacity: 1
+        }
+
+        @media(max-width:767px) {
+            .control-bar {
+                max-height: 38vh;
+                padding: 8px 10px;
+                gap: 6px;
+            }
+            .control-row {
+                gap: 4px;
+            }
+            .btn-generate {
+                font-size: 0.9rem;
+                padding: 10px 16px;
+            }
+            .progress-text {
+                font-size: 0.7rem;
+            }
+            .slider-group input[type=range] {
+                width: 60px;
+            }
+        }
+
+        @media(min-width:768px) {
+            .top-bar {
+                padding: 10px 20px;
+                min-height: 56px
+            }
+            .btn {
+                padding: 8px 14px;
+                font-size: .85rem
+            }
+            .control-bar {
+                flex-direction: row;
+                align-items: flex-start;
+                gap: 16px;
+                padding: 12px 24px;
+                max-height: none
+            }
+            .control-row {
+                flex: 1
+            }
+            .btn-generate {
+                padding: 10px 24px
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="logo-area">
+            <div class="logo-icon">🌳</div>
+            <span class="logo-text">AI 思维树</span>
+        </div>
+        <div class="spacer"></div>
+        <span id="apiStatusText" style="font-size:.7rem;color:var(--ts);margin-right:8px">🔌 未配置</span>
+        <button class="btn btn-outline btn-sm" onclick="openConfigModal()">⚙️</button>
+        <button class="btn btn-outline btn-sm" onclick="resetAll()">🔄</button>
+        <button class="btn btn-outline btn-sm" onclick="exportAsMarkdown()">📋 复制</button>
+    </div>
+    <div class="main-container">
+        <div class="tree-area" id="treeArea">
+            <svg id="treeSvg"></svg>
+            <div class="zoom-controls">
+                <button onclick="zoomIn()">＋</button>
+                <button onclick="zoomOut()">－</button>
+                <button onclick="fitView()">⊡</button>
+            </div>
+        </div>
+        <div class="control-bar" id="controlBar">
+            <div id="defaultControls" style="display:flex;flex-direction:column;gap:8px;width:100%">
+                <div class="control-row">
+                    <label>📝 问题</label>
+                    <input type="text" id="rootQuestion" placeholder="输入核心主题或问题..." value="如何实现个人成长？">
+                </div>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+                    <div class="slider-group">
+                        <label>📏 深度</label>
+                        <input type="range" id="depthSlider" min="2" max="5" value="3" oninput="depthVal.textContent=value">
+                        <span class="slider-value" id="depthVal">3</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>📊 广度</label>
+                        <input type="range" id="breadthSlider" min="1" max="4" value="2" oninput="breadthVal.textContent=value">
+                        <span class="slider-value" id="breadthVal">2</span>
+                    </div>
+                </div>
+                <button class="btn-generate" id="generateBtn" onclick="startGeneration()">✨ 一键生成思维树</button>
+                <div class="progress-text" id="progressText"></div>
+            </div>
+            <div id="nodeInfoControls" style="display:none;flex-direction:column;gap:8px;width:100%">
+                <div class="node-info-row">
+                    <span>📍</span>
+                    <span class="node-name" id="selectedNodeName"></span>
+                    <span style="font-size:.7rem;color:var(--ts)" id="selectedNodeDepth"></span>
+                </div>
+                <div id="parentNodeContainer" style="font-size:.8rem;display:flex;align-items:center;gap:6px">
+                    <span style="font-weight:600">⬆️ 父节点：</span>
+                    <span id="parentNodeName" class="parent-link"></span>
+                    <span id="noParentMsg" style="color:var(--ts)">无（根节点）</span>
+                </div>
+                <div id="childNodesContainer" style="font-size:.8rem">
+                    <div style="font-weight:600;margin-bottom:6px">📋 子节点</div>
+                    <ul class="child-list" id="childList"></ul>
+                    <div id="noChildMsg" style="color:var(--ts;font-size:.75rem">暂无子节点</div>
+                </div>
+                <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+                    <button class="btn btn-outline btn-sm" id="explainBtn" onclick="explainNode()">💬 解释此节点</button>
+                    <div id="explainResult" style="display:none;font-size:.8rem;color:var(--t);white-space:pre-wrap;background:#fdfaf5;border-radius:8px;padding:8px;line-height:1.5"></div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-danger btn-sm" onclick="deleteSelectedNode()">🗑️ 删除此节点</button>
+                    <button class="btn btn-outline btn-sm" onclick="clearSelection()">✕ 取消选择</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="configModal">
+        <div class="modal">
+            <h3>⚙️ 接口与参数配置</h3>
+            <label>API 地址 <input type="text" id="cfgBaseUrl" placeholder="https://api.deepseek.com"></label>
+            <label>模型名称 <input type="text" id="cfgModel" placeholder="deepseek-chat"></label>
+            <label>API 密钥 <input type="password" id="cfgApiKey" placeholder="sk-..."></label>
+            <p style="font-size:.7rem;color:var(--ts)">密钥仅存于本地浏览器</p>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button class="btn btn-outline btn-sm" onclick="closeConfigModal()">取消</button>
+                <button class="btn btn-primary btn-sm" onclick="saveConfig()">💾 保存</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script>
+        (function() {
+            const K = 'ai_tree_config',
+                T = 'ai_tree_data';
+            let cfg = { baseUrl: '', model: '', apiKey: '' },
+                root = null,
+                sel = null,
+                all = [],
+                gen = false;
+            let svg, gMain, zoom, tree;
+            loadCfg();
+            initD3();
+            loadTree();
+            upUI();
+            if (root) { render(true);
+                setTimeout(fit, 500) }
+            window.addEventListener('resize', () => { if (root) render(true);
+                setTimeout(fit, 300) });
+
+            function loadCfg() {
+                try { let s = localStorage.getItem(K); if (s) { let p = JSON.parse(s);
+                        cfg = { ...cfg, ...p } }
+                    cfgBaseUrl.value = cfg.baseUrl;
+                    cfgModel.value = cfg.model;
+                    cfgApiKey.value = cfg.apiKey } catch (e) {}
+                upApi()
+            }
+
+            function saveConfig() {
+                cfg.baseUrl = cfgBaseUrl.value.trim();
+                cfg.model = cfgModel.value.trim();
+                cfg.apiKey = cfgApiKey.value.trim();
+                localStorage.setItem(K, JSON.stringify(cfg));
+                upApi();
+                closeConfigModal();
+                toast('配置已保存')
+            }
+
+            function openConfigModal() { configModal.classList.add('active') }
+
+            function closeConfigModal() { configModal.classList.remove('active') }
+
+            function upApi() { let ok = !!((cfg.baseUrl && cfg.model && cfg.apiKey));
+                apiStatusText.innerHTML = ok ? '🟢 已配置' : '🔴 未配置' }
+
+            function loadTree() {
+                try { let s = localStorage.getItem(T); if (s) { root = JSON.parse(s);
+                        refresh() } } catch (e) { root = null }
+            }
+
+            function saveTree() { if (root) localStorage.setItem(T, JSON.stringify(root));
+                else localStorage.removeItem(T) }
+
+            function refresh() { all = []; if (root) collect(root) }
+
+            function collect(n) { if (!n) return;
+                all.push(n); if (n.children) n.children.forEach(c => collect(c)) }
+
+            function byId(id) { return all.find(n => n.id === id) }
+
+            function gid() { return 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) }
+
+            function resetAll() { root = null;
+                all = [];
+                sel = null;
+                localStorage.removeItem(T);
+                upUI();
+                render(false);
+                toast('已重置');
+                rootQuestion.value = '' }
+
+            function initD3() {
+                svg = d3.select('#treeSvg');
+                svg.selectAll('*').remove();
+                let defs = svg.append('defs');
+                let f = defs.append('filter').attr('id', 'glow');
+                f.append('feGaussianBlur').attr('stdDeviation', '2.5').attr('result', 'blur');
+                f.append('feMerge').selectAll('feMergeNode').data(['blur', 'feSourceGraphic']).enter().append(
+                    'feMergeNode').attr('in', d => d);
+                gMain = svg.append('g');
+                zoom = d3.zoom().scaleExtent([0.05, 120]).on('zoom', e => gMain.attr('transform', e.transform));
+                svg.call(zoom);
+                svg.on('dblclick', () => fit());
+                tree = d3.tree().nodeSize([70, 130]).separation((a, b) => a.parent === b.parent ? 1.5 : 2.2)
+            }
+
+            function render(keep = true) {
+                if (!root) { gMain.selectAll('*').remove(); return }
+                let h = d3.hierarchy(root);
+                tree(h);
+                let ds = h.descendants(),
+                    xs = ds.map(d => d.x),
+                    ys = ds.map(d => d.y);
+                let minX = Math.min(...xs),
+                    maxX = Math.max(...xs),
+                    minY = Math.min(...ys),
+                    maxY = Math.max(...ys);
+                let cx = h.x,
+                    cy = h.y;
+                let dl = cx - minX,
+                    dr = maxX - cx,
+                    dt = cy - minY,
+                    db = maxY - cy;
+                let mdx = Math.max(dl, dr, 80),
+                    mdy = Math.max(dt, db, 60);
+                let padX = 120,
+                    padY = 100;
+                svg.attr('viewBox',
+                    `${cx-(mdx+padX)} ${cy-(mdy+padY)} ${(mdx+padX)*2} ${(mdy+padY)*2}`);
+                if (keep) { try { svg.call(zoom.transform, d3.zoomTransform(svg.node())) } catch (e) {} }
+                let lg = gMain.selectAll('.link-group').data([1]);
+                lg.enter().append('g').attr('class', 'link-group');
+                let links = lg.selectAll('path').data(h.links(), d => d.source.data.id + '_' + d.target.data.id);
+                links.exit().transition().duration(300).attr('opacity', 0).remove();
+                let le = links.enter().append('path').attr('opacity', 0).attr('d', d =>
+                    `M${d.source.x},${d.source.y}L${d.source.x},${d.source.y}`);
+                le.merge(links).transition().duration(500).attr('opacity', 0.6).attr('d', d =>
+                    `M${d.source.x},${d.source.y}C${d.source.x},${(d.source.y+d.target.y)/2} ${d.target.x},${(d.source.y+d.target.y)/2} ${d.target.x},${d.target.y}`
+                ).attr('fill', 'none').attr('stroke', d => ['#b8860b', '#a0522d', '#cd853f', '#6b8e6b'][Math.min(d.target
+                    .depth, 3)] || '#9b9b8a').attr('stroke-width', d => d.target.depth <= 1 ? 2.5 : d.target.depth <= 2 ? 2 :
+                    1.5);
+                let ng = gMain.selectAll('.node-group').data([1]);
+                ng.enter().append('g').attr('class', 'node-group');
+                let nodes = ng.selectAll('g.node').data(ds, d => d.data.id);
+                nodes.exit().transition().duration(300).attr('opacity', 0).remove();
+                let ne = nodes.enter().append('g').attr('class', 'node').attr('opacity', 0).style('cursor', 'pointer').on(
+                    'click', (ev, d) => { ev.stopPropagation();
+                        select(d.data) });
+                ne.append('circle').attr('r', d => getR(d.depth)).attr('fill', d => getC(d.depth)).attr('stroke', '#fff')
+                    .attr('stroke-width', 1.5);
+                ne.append('text').attr('dy', d => -getR(d.depth) - 6).attr('text-anchor', 'middle').attr('fill', '#2c2416')
+                    .style('font-size', d => getFS(d.depth)).style('font-weight', d => d.depth <= 1 ? '600' : '400').text(d =>
+                        trunc(d.data.name, getML(d.depth)));
+                ne.append('text').attr('dy', d => getR(d.depth) + 14).attr('text-anchor', 'middle').attr('fill', d => getC(d
+                    .depth)).style('font-size', '8px').style('font-weight', '700').text(d => d.data.depth === 0 ? '根' : d
+                    .data.depth);
+                ne.merge(nodes).transition().duration(500).attr('opacity', 1).attr('transform', d =>
+                    `translate(${d.x},${d.y})`);
+                if (sel) { let sn = byId(sel); if (sn) showInfo(sn);
+                    else clear() }
+            }
+
+            function getR(d) { return [26, 20, 16, 13, 10][Math.min(d, 4)] }
+
+            function getC(d) { return ['#b8860b', '#8b4513', '#a0522d', '#cd853f', '#6b8e6b'][Math.min(d, 4)] }
+
+            function getFS(d) { return ['13px', '11px', '10px', '9px', '8px'][Math.min(d, 4)] }
+
+            function getML(d) { return [16, 12, 9, 7, 6][Math.min(d, 4)] }
+
+            function trunc(t, l) { return t?.length > l ? t.slice(0, l - 1) + '…' : t }
+
+            function zoomIn() { svg.transition().duration(300).call(zoom.scaleBy, 1.6) }
+
+            function zoomOut() { svg.transition().duration(300).call(zoom.scaleBy, 0.7) }
+
+            function fit() {
+                if (!root) return;
+                let h = d3.hierarchy(root);
+                tree(h);
+                let el = svg.node();
+                if (!el) return;
+                let sw = el.getBoundingClientRect().width,
+                    sh = el.getBoundingClientRect().height;
+                if (sw <= 0 || sh <= 0) { requestAnimationFrame(fit); return }
+                let rx = h.x,
+                    ry = h.y,
+                    nodeR = getR(0);
+                let target = Math.min(sw, sh) * 0.4;
+                let sc = Math.min(120, Math.max(0.05, target / (nodeR * 2)));
+                let tx = sw / 2 - sc * rx,
+                    ty = sh / 2 - sc * ry;
+                svg.transition().duration(600).ease(d3.easeCubicOut).call(zoom.transform, d3.zoomIdentity.translate(tx,
+                    ty).scale(sc))
+            }
+
+            function select(n) { sel = n.id;
+                showInfo(n);
+                render(true) }
+
+            function clear() { sel = null;
+                upUI();
+                render(true) }
+
+            function deleteSelectedNode() {
+                if (!sel) return;
+                let n = byId(sel);
+                if (!n) return;
+                if (n === root) { resetAll(); return }
+                for (let p of all) { if (!p.children) continue;
+                    let idx = p.children.findIndex(c => c.id === sel); if (idx !== -1) { p.children.splice(idx, 1); break } }
+                clear();
+                refresh();
+                saveTree();
+                render(true);
+                toast('节点已删除')
+            }
+
+            function deleteChild(cid) {
+                let p = byId(sel);
+                if (!p || !p.children) return;
+                let idx = p.children.findIndex(c => c.id === cid);
+                if (idx !== -1) { p.children.splice(idx, 1);
+                    refresh();
+                    saveTree();
+                    render(true);
+                    let up = byId(sel); if (up) showInfo(up);
+                    else clear();
+                    toast('子节点已删除') }
+            }
+
+            function getParent(n) {
+                if (!n || n === root) return null;
+                for (let p of all) { if (p.children && p.children.some(c => c.id === n.id)) return p }
+                return null
+            }
+
+            function showInfo(n) {
+                defaultControls.style.display = 'none';
+                nodeInfoControls.style.display = 'flex';
+                selectedNodeName.textContent = n.name;
+                selectedNodeDepth.textContent = '深度 ' + (n.depth || 0);
+                let p = getParent(n);
+                if (p) {
+                    noParentMsg.style.display = 'none';
+                    parentNodeName.style.display = 'inline';
+                    parentNodeName.textContent = p.name;
+                    parentNodeName.onclick = () => select(p)
+                } else {
+                    noParentMsg.style.display = 'inline';
+                    parentNodeName.style.display = 'none';
+                    parentNodeName.onclick = null
+                }
+                let cl = childList,
+                    noC = noChildMsg;
+                cl.innerHTML = '';
+                if (n.children && n.children.length > 0) {
+                    noC.style.display = 'none';
+                    n.children.forEach(c => {
+                        let li = document.createElement('li');
+                        li.innerHTML =
+                            `<span class="child-name" onclick="window._sel('${c.id}')">${esc(c.name)}</span><span class="child-delete" onclick="window._del('${c.id}')">✕</span>`;
+                        cl.appendChild(li)
+                    })
+                } else { noC.style.display = 'block' }
+                // 重置解释区域
+                let explainDiv = document.getElementById('explainResult');
+                if (explainDiv) { explainDiv.style.display = 'none';
+                    explainDiv.textContent = ''; }
+                let explainBtn = document.getElementById('explainBtn');
+                if (explainBtn) { explainBtn.disabled = false;
+                    explainBtn.textContent = '💬 解释此节点'; }
+            }
+
+            function upUI() {
+                if (sel) { let n = byId(sel); if (n) showInfo(n);
+                    else clear() } else { defaultControls.style.display = 'flex';
+                    nodeInfoControls.style.display = 'none' }
+            }
+
+            function exportAsMarkdown() {
+                if (!root) { toast('❌ 暂无思维树可复制'); return }
+                let md = '';
+
+                function trav(n, lvl = 0) { md += '  '.repeat(lvl) + '- ' + n.name + '\n'; if (n.children) n.children.forEach(
+                        c => trav(c, lvl + 1)) }
+                trav(root);
+                navigator.clipboard.writeText(md.trim()).then(() => toast('✅ 已复制为 Markdown 格式')).catch(() => toast(
+                    '⚠️ 复制失败'))
+            }
+            async function startGeneration() {
+                if (gen) return;
+                if (!(cfg.baseUrl && cfg.model && cfg.apiKey)) { toast('请先配置API');
+                    openConfigModal(); return }
+                let q = rootQuestion.value.trim();
+                if (!q) { toast('请输入核心问题'); return }
+                let maxD = +depthSlider.value,
+                    bread = +breadthSlider.value;
+                if (maxD < 1 || bread < 1) return;
+                gen = true;
+                let btn = generateBtn;
+                btn.disabled = true;
+                btn.textContent = '⏳ 生成中...';
+                progressText.textContent = '准备根节点...';
+                root = { id: gid(), name: q, depth: 0, children: [] };
+                all = [root];
+                render(false);
+                fit();
+                saveTree();
+                try {
+                    for (let d = 0; d < maxD; d++) {
+                        let nodes = all.filter(n => n.depth === d && (!n.children || n.children.length === 0));
+                        if (!nodes.length) break;
+                        progressText.textContent = `正在生成第 ${d+1} 层 (${nodes.length}个节点)...`;
+                        let proms = nodes.map(n => fetchKids(n, bread));
+                        let res = await Promise.allSettled(proms);
+                        res.forEach((r, i) => { let node = nodes[i]; if (r.status === 'fulfilled' && Array.isArray(r
+                                .value)) { node.children = r.value.map(nm => ({ id: gid(), name: nm, depth: d + 1,
+                                    children: [] })) } else { node.children = [] } });
+                        refresh();
+                        render(true);
+                        fit();
+                        saveTree();
+                        await new Promise(r => setTimeout(r, 300))
+                    }
+                    progressText.textContent = '✅ 思维树生成完毕！';
+                    sel = null;
+                    upUI()
+                } catch (e) { toast('生成出错: ' + e.message);
+                    progressText.textContent = '❌ 生成中断' } finally { gen = false;
+                    btn.disabled = false;
+                    btn.textContent = '✨ 一键生成思维树';
+                    saveTree() }
+            }
+            async function fetchKids(n, cnt) {
+                let path = getPath(n);
+                let ctx = path.map(p => `[深度${p.depth}] ${p.name}`).join(' → ');
+                let prompt =
+                    `你是一个思维导图生成器。当前上下文：${ctx}\n请针对节点“${n.name}”，深入推导出 ${cnt} 个更具体的子主题或关键点。\n要求：每个子主题为简洁短语（不超过15字），彼此独立且覆盖关键维度。直接返回JSON字符串数组，不要额外解释。`;
+                let url = cfg.baseUrl.replace(/\/+$/, '') + '/chat/completions';
+                let resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
+                    body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system',
+                            content: '你是专业的逻辑助手，只返回JSON数组。' }, { role: 'user', content: prompt }],
+                        temperature: 0.7, max_tokens: 800 })
+                });
+                if (!resp.ok) throw new Error(`API ${resp.status}`);
+                let data = await resp.json();
+                let raw = data.choices?.[0]?.message?.content || '';
+                let items = [];
+                let m = raw.match(/\[[\s\S]*\]/);
+                if (m) { try { let p = JSON.parse(m[0]); if (Array.isArray(p)) items = p } catch (e) {} }
+                if (!items.length) items = raw.split('\n').map(l => l.replace(/^[\d\.\-\s*]+/, '').trim()).filter(l => l);
+                items = items.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, cnt);
+                if (!items.length) items = [`${n.name} 的子主题`];
+                return items
+            }
+
+            function getPath(n) {
+                let path = [];
+                let cur = n;
+                while (cur) { path.unshift({ name: cur.name, depth: cur.depth }); if (cur.depth === 0) break;
+                    cur = all.find(p => p.children?.some(c => c.id === cur.id)) }
+                return path
+            }
+
+            function esc(s) { let d = document.createElement('div');
+                d.textContent = s; return d.innerHTML }
+
+            function toast(m) { let t = document.getElementById('toast');
+                t.textContent = m;
+                t.classList.add('show');
+                clearTimeout(t._timer);
+                t._timer = setTimeout(() => t.classList.remove('show'), 2500) }
+
+            // 新增解释功能
+            async function explainNode() {
+                if (!sel) return;
+                let n = byId(sel);
+                if (!n) return;
+                let parent = getParent(n);
+                if (!parent) {
+                    let resultDiv = document.getElementById('explainResult');
+                    resultDiv.style.display = 'block';
+                    resultDiv.textContent = '这是思维树的根节点，代表你提出的核心主题或问题。所有其他节点都是从它延伸出来的分支，就像一棵树的种子，决定了整棵树的生长方向。';
+                    return;
+                }
+                if (!(cfg.baseUrl && cfg.model && cfg.apiKey)) {
+                    toast('请先配置API');
+                    openConfigModal();
+                    return;
+                }
+                let btn = document.getElementById('explainBtn');
+                btn.disabled = true;
+                btn.textContent = '⏳ 解释中...';
+                let resultDiv = document.getElementById('explainResult');
+                resultDiv.style.display = 'none';
+                try {
+                    let prompt =
+                        `你是一位善于用通俗比喻解释复杂关系的老师。在思维树中，父节点是“${parent.name}”，子节点是“${n.name}”。请用1-2句话（不超过100字）解释这个子节点为什么会在父节点下面，它代表了父节点的哪个方面或分支。要求：通俗易懂，像打比方，用中文回答。直接返回解释文本，不要加前缀。`;
+                    let url = cfg.baseUrl.replace(/\/+$/, '') + '/chat/completions';
+                    let resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
+                        body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system',
+                                content: '你是通俗易懂的解释助手。' }, { role: 'user', content: prompt }],
+                            temperature: 0.8, max_tokens: 200 })
+                    });
+                    if (!resp.ok) throw new Error(`API ${resp.status}`);
+                    let data = await resp.json();
+                    let text = data.choices?.[0]?.message?.content?.trim() || '无法获取解释。';
+                    resultDiv.textContent = text;
+                    resultDiv.style.display = 'block';
+                } catch (e) {
+                    toast('解释请求失败: ' + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '💬 解释此节点';
+                }
+            }
+
+            window._sel = function(id) { let n = byId(id); if (n) select(n) };
+            window._del = deleteChild;
+            window.exportAsMarkdown = exportAsMarkdown;
+            window.openConfigModal = openConfigModal;
+            window.closeConfigModal = closeConfigModal;
+            window.saveConfig = saveConfig;
+            window.resetAll = resetAll;
+            window.fitView = fit;
+            window.zoomIn = zoomIn;
+            window.zoomOut = zoomOut;
+            window.startGeneration = startGeneration;
+            window.clearSelection = clear;
+            window.deleteSelectedNode = deleteSelectedNode;
+            window.explainNode = explainNode;
+        })();
+    </script>
+</body>
+</html>
